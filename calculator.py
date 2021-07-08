@@ -41,17 +41,71 @@ To submit your homework:
 
 """
 
+import traceback
+
 
 def add(*args):
     """ Returns a STRING with the sum of the arguments """
+    try:
+      return str(sum([int(x) for x in args]))
+    except ValueError:
+      raise ValueError('Error: can only operate on integer arguments.')
 
-    # TODO: Fill sum with the correct value, based on the
-    # args provided.
-    sum = "0"
+def subtract(*args):
+    """ Returns a STRING with the result of subtraction of the arguments """
+    try:
+      args = [int(x) for x in args]
+    except ValueError:
+      raise ValueError('Error: can only operate on integer arguments.')
 
-    return sum
+    result = args.pop(0)
+    for arg in args:
+      result -= arg
 
-# TODO: Add functions for handling more arithmetic operations.
+    return str(result)
+
+def multiply(*args):
+    """ Returns a STRING with the product of the arguments. """
+    try:
+      args = [int(x) for x in args]
+    except ValueError:
+      raise ValueError('Error: can only operate on integer arguments.')
+
+    result = args.pop(0)
+    for arg in args:
+      result *= arg
+
+    return str(result)
+
+def divide(*args):
+    """ Returns a STRING with the result of division of the arguments. """
+    try:
+      args = [int(x) for x in args]
+    except ValueError:
+      raise ValueError('Error: can only operate on integer arguments.')
+
+    result = args.pop(0)
+    try:
+      for arg in args:
+        result //= arg
+    except ZeroDivisionError:
+      raise ValueError('Error: cannot divide by zero.')
+
+    return str(result)
+
+def home():
+    """ Homepage with guidelines for how to use app. """
+    return """
+Welcome to the calculator app.
+
+Perform a calculation using a url path that includes the operation and operands, as in the
+following example:
+
+/add/2/2 --> 4
+/subtract/4/2 --> 2
+/multiply/2/2 --> 4
+/divide/4/2 --> 2
+"""
 
 def resolve_path(path):
     """
@@ -59,26 +113,50 @@ def resolve_path(path):
     arguments.
     """
 
-    # TODO: Provide correct values for func and args. The
-    # examples provide the correct *syntax*, but you should
-    # determine the actual values of func and args using the
-    # path.
-    func = add
-    args = ['25', '32']
+    funcs = {
+             '': home,
+             'add': add,
+             'subtract': subtract,
+             'multiply': multiply,
+             'divide': divide
+             }
+
+    args = path.strip('/').split('/')
+    func_name = args.pop(0)
+
+    try:
+      func = funcs[func_name]
+    except KeyError:
+      raise NameError
 
     return func, args
 
 def application(environ, start_response):
-    # TODO: Your application code from the book database
-    # work here as well! Remember that your application must
-    # invoke start_response(status, headers) and also return
-    # the body of the response in BYTE encoding.
-    #
-    # TODO (bonus): Add error handling for a user attempting
-    # to divide by zero.
-    pass
+    headers = headers = [('Content-type', 'text/plain')]
+    try:
+      path = environ.get("PATH_INFO", None)
+      if path is None:
+        raise NameError
+
+      func, args = resolve_path(path)
+      body = func(*args)
+      status = "200 OK"
+    except NameError:
+      status = "404 Not Found"
+      body = "Not Found."
+    except ValueError as error:
+      status = "500 Internal Server Error"
+      body = str(error)
+    except Exception:
+      status = "500 Internal Server Error"
+      body = "Internal server error."
+      print(traceback.format_exc())
+    finally:
+      headers.append(('Content-length', str(len(body))))
+      start_response(status, headers)
+      return [body.encode('utf8')]
 
 if __name__ == '__main__':
-    # TODO: Insert the same boilerplate wsgiref simple
-    # server creation that you used in the book database.
-    pass
+    from wsgiref.simple_server import make_server
+    srv = make_server('localhost', 8080, application)
+    srv.serve_forever()
